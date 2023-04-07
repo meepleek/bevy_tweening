@@ -13,7 +13,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             ..default()
         }))
         .add_system(bevy::window::close_on_esc)
-        .add_plugin(TweeningPlugin::default())
+        .add_plugin(TweeningPlugin::<u64>::default())
         .add_startup_system(setup)
         .run();
 
@@ -26,7 +26,7 @@ fn setup(mut commands: Commands) {
     let size = 25.;
     let screen_y = 150.;
 
-    let tween = Tween::new(
+    let tween = Tween::<_, u64>::new(
         EaseFunction::QuadraticInOut,
         std::time::Duration::from_millis(500),
         TransformRelativePositionLens {
