@@ -1,3 +1,5 @@
+use std::marker::PhantomData;
+
 #[cfg(feature = "bevy_asset")]
 use bevy::asset::Asset;
 use bevy::{ecs::component::Component, prelude::*};
@@ -34,30 +36,37 @@ use crate::{tweenable::ComponentTarget, Animator, AnimatorState, TweenCompleted}
 /// [`Style`]: https://docs.rs/bevy/0.10.0/bevy/ui/struct.Style.html
 /// [`Sprite`]: https://docs.rs/bevy/0.10.0/bevy/sprite/struct.Sprite.html
 /// [`ColorMaterial`]: https://docs.rs/bevy/0.10.0/bevy/sprite/struct.ColorMaterial.html
-#[derive(Debug, Clone, Copy)]
-pub struct TweeningPlugin;
+#[derive(Debug, Clone, Copy, Default)]
+pub struct TweeningPlugin<TCompleted: Clone + Event>(PhantomData<TCompleted>);
 
-impl Plugin for TweeningPlugin {
+impl<TCompleted: Clone + Event> Plugin for TweeningPlugin<TCompleted> {
     fn build(&self, app: &mut App) {
-        app.add_event::<TweenCompleted>().add_system(
-            component_animator_system::<Transform>.in_set(AnimationSystem::AnimationUpdate),
+        app.add_event::<TweenCompleted<TCompleted>>().add_system(
+            component_animator_system::<Transform, TCompleted>
+                .in_set(AnimationSystem::AnimationUpdate),
         );
 
         #[cfg(feature = "bevy_ui")]
-        app.add_system(component_animator_system::<Style>.in_set(AnimationSystem::AnimationUpdate));
+        app.add_system(
+            component_animator_system::<Style, TCompleted>.in_set(AnimationSystem::AnimationUpdate),
+        );
 
         #[cfg(feature = "bevy_sprite")]
         app.add_system(
-            component_animator_system::<Sprite>.in_set(AnimationSystem::AnimationUpdate),
+            component_animator_system::<Sprite, TCompleted>
+                .in_set(AnimationSystem::AnimationUpdate),
         );
 
         #[cfg(all(feature = "bevy_sprite", feature = "bevy_asset"))]
         app.add_system(
-            asset_animator_system::<ColorMaterial>.in_set(AnimationSystem::AnimationUpdate),
+            asset_animator_system::<ColorMaterial, TCompleted>
+                .in_set(AnimationSystem::AnimationUpdate),
         );
 
         #[cfg(feature = "bevy_text")]
-        app.add_system(component_animator_system::<Text>.in_set(AnimationSystem::AnimationUpdate));
+        app.add_system(
+            component_animator_system::<Text, TCompleted>.in_set(AnimationSystem::AnimationUpdate),
+        );
     }
 }
 
@@ -70,14 +79,14 @@ pub enum AnimationSystem {
 
 /// Animator system for components.
 ///
-/// This system extracts all components of type `T` with an `Animator<T>`
+/// This system extracts all components of type `T` with an `Animator<T, TCompleted>`
 /// attached to the same entity, and tick the animator to animate the component.
-pub fn component_animator_system<T: Component>(
+pub fn component_animator_system<T: Component, TCompleted: Clone + Event>(
     time: Res<Time>,
-    mut query: Query<(Entity, &mut T, &mut Animator<T>)>,
-    events: ResMut<Events<TweenCompleted>>,
+    mut query: Query<(Entity, &mut T, &mut Animator<T, TCompleted>)>,
+    events: ResMut<Events<TweenCompleted<TCompleted>>>,
 ) {
-    let mut events: Mut<Events<TweenCompleted>> = events.into();
+    let mut events: Mut<Events<TweenCompleted<TCompleted>>> = events.into();
     for (entity, target, mut animator) in query.iter_mut() {
         if animator.state != AnimatorState::Paused {
             let speed = animator.speed();
@@ -94,18 +103,18 @@ pub fn component_animator_system<T: Component>(
 
 /// Animator system for assets.
 ///
-/// This system ticks all `AssetAnimator<T>` components to animate their
+/// This system ticks all `AssetAnimator<T, TCompleted>` components to animate their
 /// associated asset.
 ///
 /// This requires the `bevy_asset` feature (enabled by default).
 #[cfg(feature = "bevy_asset")]
-pub fn asset_animator_system<T: Asset>(
+pub fn asset_animator_system<T: Asset, TCompleted: Clone + Event>(
     time: Res<Time>,
     assets: ResMut<Assets<T>>,
-    mut query: Query<(Entity, &mut AssetAnimator<T>)>,
-    events: ResMut<Events<TweenCompleted>>,
+    mut query: Query<(Entity, &mut AssetAnimator<T, TCompleted>)>,
+    events: ResMut<Events<TweenCompleted<TCompleted>>>,
 ) {
-    let mut events: Mut<Events<TweenCompleted>> = events.into();
+    let mut events: Mut<Events<TweenCompleted<TCompleted>>> = events.into();
     let mut target = AssetTarget::new(assets);
     for (entity, mut animator) in query.iter_mut() {
         if animator.state != AnimatorState::Paused {
@@ -142,7 +151,7 @@ mod tests {
         /// [`Transform`], and add the given animator on that same entity.
         pub fn new<T: Component>(animator: T) -> Self {
             let mut world = World::new();
-            world.init_resource::<Events<TweenCompleted>>();
+            world.init_resource::<Events<TweenCompleted<TCompleted>>>();
 
             let mut time = Time::default();
             time.update();
@@ -176,7 +185,9 @@ mod tests {
             system.run((), &mut self.world);
 
             // Update events after system ticked, in case system emitted some events
-            let mut events = self.world.resource_mut::<Events<TweenCompleted>>();
+            let mut events = self
+                .world
+                .resource_mut::<Events<TweenCompleted<TCompleted>>>();
             events.update();
         }
 
@@ -195,7 +206,7 @@ mod tests {
 
         /// Get the emitted event count since last tick.
         pub fn event_count(&self) -> usize {
-            let events = self.world.resource::<Events<TweenCompleted>>();
+            let events = self.world.resource::<Events<TweenCompleted<TCompleted>>>();
             events.get_reader().len(events)
         }
     }

@@ -205,7 +205,7 @@ fn update_text(
     mut query_text_blue: Query<&mut Text, (With<BlueProgress>, Without<RedProgress>)>,
     query_anim_red: Query<&Animator<Transform>, With<RedSprite>>,
     query_anim_blue: Query<&Animator<Transform>, With<BlueSprite>>,
-    mut query_event: EventReader<TweenCompleted>,
+    mut query_event: EventReader<TweenCompleted<TCompleted>>,
 ) {
     let anim_red = query_anim_red.single();
     let progress_red = anim_red.tweenable().progress();

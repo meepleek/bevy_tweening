@@ -13,7 +13,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             ..default()
         }))
         .add_system(bevy::window::close_on_esc)
-        .add_plugin(TweeningPlugin)
+        .add_plugin(TweeningPlugin::default())
         .add_startup_system(setup)
         .run();
 

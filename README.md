@@ -89,7 +89,7 @@ commands.spawn((
 
 ### Chaining animations
 
-Bevy Tweening supports several types of _tweenables_, building blocks that can be combined to form complex animations. A tweenable is a type implementing the `Tweenable<T>` trait.
+Bevy Tweening supports several types of _tweenables_, building blocks that can be combined to form complex animations. A tweenable is a type implementing the `Tweenable<T, TCompleted>` trait.
 
 - **`Tween`** - A simple tween (easing) animation between two values.
 - **`Sequence`** - A series of tweenables executing in series, one after the other.
