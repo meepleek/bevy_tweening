@@ -36,8 +36,15 @@ use crate::{tweenable::ComponentTarget, Animator, AnimatorState, TweenCompleted}
 /// [`Style`]: https://docs.rs/bevy/0.10.0/bevy/ui/struct.Style.html
 /// [`Sprite`]: https://docs.rs/bevy/0.10.0/bevy/sprite/struct.Sprite.html
 /// [`ColorMaterial`]: https://docs.rs/bevy/0.10.0/bevy/sprite/struct.ColorMaterial.html
-#[derive(Debug, Clone, Copy, Default)]
+#[derive(Debug, Clone, Copy)]
 pub struct TweeningPlugin<TCompleted: Clone + Event>(PhantomData<TCompleted>);
+
+impl<TCompleted: Clone + Event> TweeningPlugin<TCompleted> {
+    /// Create tweening plugin
+    pub fn new() -> Self {
+        Self(PhantomData::default())
+    }
+}
 
 impl<TCompleted: Clone + Event> Plugin for TweeningPlugin<TCompleted> {
     fn build(&self, app: &mut App) {
