@@ -204,7 +204,7 @@
 //! [`Text`]: https://docs.rs/bevy/0.12.0/bevy/text/struct.Text.html
 //! [`Transform`]: https://docs.rs/bevy/0.12.0/bevy/transform/components/struct.Transform.html
 
-use std::time::Duration;
+use std::{marker::PhantomData, time::Duration};
 
 #[cfg(feature = "bevy_asset")]
 use bevy::asset::Asset;
@@ -468,19 +468,28 @@ macro_rules! animator_impl {
     };
 }
 
+/// Tweenable time context marker
+/// todo: better docs
+pub trait AnimatorTime {}
+impl AnimatorTime for Virtual {}
+impl AnimatorTime for Real {}
+impl AnimatorTime for Fixed {}
+// todo: a derive macro?
+
 /// Component to control the animation of another component.
 ///
 /// The animated component is the component located on the same entity as the
 /// [`Animator<T>`] itself.
 #[derive(Component)]
-pub struct Animator<T: Component> {
+pub struct Animator<T: Component, U: AnimatorTime = Virtual> {
     /// Control if this animation is played or not.
     pub state: AnimatorState,
     tweenable: BoxedTweenable<T>,
     speed: f32,
+    _phantom_time: PhantomData<U>,
 }
 
-impl<T: Component + std::fmt::Debug> std::fmt::Debug for Animator<T> {
+impl<T: Component + std::fmt::Debug, U: AnimatorTime> std::fmt::Debug for Animator<T, U> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("Animator")
             .field("state", &self.state)
@@ -496,6 +505,20 @@ impl<T: Component> Animator<T> {
             state: default(),
             tweenable: Box::new(tween),
             speed: 1.,
+            _phantom_time: PhantomData,
+        }
+    }
+}
+
+impl<T: Component, U: AnimatorTime> Animator<T, U> {
+    /// Create a new animator component from a single tweenable.
+    #[must_use]
+    pub fn new_with_time(tween: impl Tweenable<T> + 'static) -> Self {
+        Self {
+            state: default(),
+            tweenable: Box::new(tween),
+            speed: 1.,
+            _phantom_time: Default::default(),
         }
     }
 

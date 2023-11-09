@@ -4,7 +4,7 @@ use bevy::{ecs::component::Component, prelude::*};
 
 #[cfg(feature = "bevy_asset")]
 use crate::{tweenable::AssetTarget, AssetAnimator};
-use crate::{tweenable::ComponentTarget, Animator, AnimatorState, TweenCompleted};
+use crate::{tweenable::ComponentTarget, Animator, AnimatorState, AnimatorTime, TweenCompleted};
 
 /// Plugin to add systems related to tweening of common components and assets.
 ///
@@ -41,24 +41,26 @@ impl Plugin for TweeningPlugin {
     fn build(&self, app: &mut App) {
         app.add_event::<TweenCompleted>().add_systems(
             Update,
-            component_animator_system::<Transform>.in_set(AnimationSystem::AnimationUpdate),
+            component_animator_system::<Transform, Virtual>
+                .in_set(AnimationSystem::AnimationUpdate),
         );
 
         #[cfg(feature = "bevy_ui")]
         app.add_systems(
             Update,
-            component_animator_system::<Style>.in_set(AnimationSystem::AnimationUpdate),
+            component_animator_system::<Style, Virtual>.in_set(AnimationSystem::AnimationUpdate),
         );
         #[cfg(feature = "bevy_ui")]
         app.add_systems(
             Update,
-            component_animator_system::<BackgroundColor>.in_set(AnimationSystem::AnimationUpdate),
+            component_animator_system::<BackgroundColor, Virtual>
+                .in_set(AnimationSystem::AnimationUpdate),
         );
 
         #[cfg(feature = "bevy_sprite")]
         app.add_systems(
             Update,
-            component_animator_system::<Sprite>.in_set(AnimationSystem::AnimationUpdate),
+            component_animator_system::<Sprite, Virtual>.in_set(AnimationSystem::AnimationUpdate),
         );
 
         #[cfg(all(feature = "bevy_sprite", feature = "bevy_asset"))]
@@ -70,7 +72,7 @@ impl Plugin for TweeningPlugin {
         #[cfg(feature = "bevy_text")]
         app.add_systems(
             Update,
-            component_animator_system::<Text>.in_set(AnimationSystem::AnimationUpdate),
+            component_animator_system::<Text, Virtual>.in_set(AnimationSystem::AnimationUpdate),
         );
     }
 }
@@ -86,9 +88,12 @@ pub enum AnimationSystem {
 ///
 /// This system extracts all components of type `T` with an [`Animator<T>`]
 /// attached to the same entity, and tick the animator to animate the component.
-pub fn component_animator_system<T: Component>(
-    time: Res<Time>,
-    mut query: Query<(Entity, &mut T, &mut Animator<T>)>,
+pub fn component_animator_system<
+    C: Component,
+    T: AnimatorTime + Default + Reflect + Send + Sync + 'static,
+>(
+    time: Res<Time<T>>,
+    mut query: Query<(Entity, &mut C, &mut Animator<C, T>)>,
     events: ResMut<Events<TweenCompleted>>,
 ) {
     let mut events: Mut<Events<TweenCompleted>> = events.into();
@@ -113,10 +118,10 @@ pub fn component_animator_system<T: Component>(
 ///
 /// This requires the `bevy_asset` feature (enabled by default).
 #[cfg(feature = "bevy_asset")]
-pub fn asset_animator_system<T: Asset>(
+pub fn asset_animator_system<A: Asset>(
     time: Res<Time>,
-    assets: ResMut<Assets<T>>,
-    mut query: Query<(Entity, &Handle<T>, &mut AssetAnimator<T>)>,
+    assets: ResMut<Assets<A>>,
+    mut query: Query<(Entity, &Handle<A>, &mut AssetAnimator<A>)>,
     events: ResMut<Events<TweenCompleted>>,
 ) {
     let mut events: Mut<Events<TweenCompleted>> = events.into();
@@ -157,7 +162,7 @@ mod tests {
         pub fn new<T: Component>(animator: T) -> Self {
             let mut world = World::new();
             world.init_resource::<Events<TweenCompleted>>();
-            world.init_resource::<Time>();
+            world.init_resource::<Time<Virtual>>();
 
             let entity = world.spawn((Transform::default(), animator)).id();
 
@@ -174,7 +179,7 @@ mod tests {
         pub fn tick(&mut self, duration: Duration, system: &mut dyn System<In = (), Out = ()>) {
             // Simulate time passing by updating the simulation time resource
             {
-                let mut time = self.world.resource_mut::<Time>();
+                let mut time = self.world.resource_mut::<Time<Virtual>>();
                 time.advance_by(duration);
             }
 
@@ -230,7 +235,7 @@ mod tests {
 
         // fn nit() {}
         // let mut system = IntoSystem::into_system(nit);
-        let mut system = IntoSystem::into_system(component_animator_system::<Transform>);
+        let mut system = IntoSystem::into_system(component_animator_system::<Transform, Virtual>);
         system.initialize(env.world_mut());
 
         env.tick(Duration::ZERO, &mut system);

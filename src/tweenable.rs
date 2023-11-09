@@ -251,7 +251,7 @@ impl<'a, T: Asset> Targetable<T> for AssetTarget<'a, T> {
 }
 
 /// An animatable entity, either a single [`Tween`] or a collection of them.
-pub trait Tweenable<T>: Send + Sync {
+pub trait Tweenable<C>: Send + Sync {
     /// Get the duration of a single iteration of the animation.
     ///
     /// Note that for [`RepeatStrategy::MirroredRepeat`], this is the duration
@@ -312,7 +312,7 @@ pub trait Tweenable<T>: Send + Sync {
     fn tick(
         &mut self,
         delta: Duration,
-        target: &mut dyn Targetable<T>,
+        target: &mut dyn Targetable<C>,
         entity: Entity,
         events: &mut Mut<Events<TweenCompleted>>,
     ) -> TweenState;
